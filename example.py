@@ -34,11 +34,11 @@ FLAGS = tf.app.flags.FLAGS
 server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
 
 # config
-batch_size = 150
-learning_rate = 0.0005
-training_epochs = 50 # 50
-n_hidden = 500
-logs_path = "/tmp/mnist/1"
+batch_size = 5000  # as big as will fit on my gpu
+learning_rate = 0.0040
+training_epochs = 50
+n_hidden = 2000
+logs_path = "/tmp/mnist/2"
 
 # load mnist data set
 from tensorflow.examples.tutorials.mnist import input_data
@@ -94,7 +94,7 @@ elif FLAGS.job_name == "worker":
         # specify optimizer
         with tf.name_scope('train'):
             # optimizer is an "operation" which we can execute in a session
-            grad_op = tf.train.GradientDescentOptimizer(learning_rate)
+            grad_op = tf.train.AdamOptimizer(learning_rate=learning_rate)
             train_op = grad_op.minimize(cross_entropy, global_step=global_step)
 
         with tf.name_scope('Accuracy'):
@@ -141,11 +141,11 @@ elif FLAGS.job_name == "worker":
                     start_time = time.time()
                     print("Step: %d," % (step + 1), " Epoch: %2d," % (epoch + 1),
                           " Batch: %3d of %3d," % (i + 1, batch_count), " Cost: %.4f," % cost,
-                          " Train acc %2.2f" % train_accuracy*100,
+                          " Train acc %2.2f" % (train_accuracy * 100),
                           " AvgTime: %3.2fms" % float(elapsed_time * 1000 / frequency))
                     count = 0
 
-        print("Test-Accuracy: %2.2f" % sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels}))
+        print("Test-Accuracy: %2.2f" % (sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels}) *100))
         print("Total Time: %3.2fs" % float(time.time() - begin_time))
         print("Final Cost: %.4f" % cost)
 
