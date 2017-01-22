@@ -34,8 +34,8 @@ FLAGS = tf.app.flags.FLAGS
 server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
 
 # config
-batch_size = 5000  # as big as will fit on my gpu
-learning_rate = 0.001
+batch_size = 5000  #  As big as will fit on my gpu
+learning_rate = 0.002 #  Average learning. Why no sync?
 training_epochs = 50
 n_hidden = 2000
 logs_path = "/tmp/mnist/2"
@@ -83,14 +83,14 @@ elif FLAGS.job_name == "worker":
             # y is our prediction
             z2 = tf.add(tf.matmul(x, W1), b1)
             a2 = tf.nn.sigmoid(z2)
-            z3 = tf.add(tf.matmul(a2, W2), b2)
-            y = tf.nn.softmax(z3)
+            logits = tf.add(tf.matmul(a2, W2), b2)
+            softmax_logits = tf.nn.softmax(logits)
 
         # specify cost function
         with tf.name_scope('cross_entropy'):
             # this is our cost
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(y, y_)
-            loss = tf.reduce_mean(cross_entropy)
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, y_)
+            loss = tf.reduce_sum(cross_entropy)
 
         # specify optimizer
         with tf.name_scope('train'):
@@ -100,7 +100,7 @@ elif FLAGS.job_name == "worker":
 
         with tf.name_scope('Accuracy'):
             # accuracy
-            correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+            correct_prediction = tf.equal(tf.argmax(softmax_logits, 1), tf.argmax(y_, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
         # create a summary for our cost and accuracy
