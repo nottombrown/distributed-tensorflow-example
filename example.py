@@ -35,7 +35,7 @@ server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task
 
 # config
 batch_size = 5000  # as big as will fit on my gpu
-learning_rate = 0.0040
+learning_rate = 0.001
 training_epochs = 50
 n_hidden = 2000
 logs_path = "/tmp/mnist/2"
@@ -89,13 +89,14 @@ elif FLAGS.job_name == "worker":
         # specify cost function
         with tf.name_scope('cross_entropy'):
             # this is our cost
-            cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(y, y_)
+            loss = tf.reduce_mean(cross_entropy)
 
         # specify optimizer
         with tf.name_scope('train'):
             # optimizer is an "operation" which we can execute in a session
             grad_op = tf.train.AdamOptimizer(learning_rate=learning_rate)
-            train_op = grad_op.minimize(cross_entropy, global_step=global_step)
+            train_op = grad_op.minimize(loss, global_step=global_step)
 
         with tf.name_scope('Accuracy'):
             # accuracy
@@ -103,7 +104,7 @@ elif FLAGS.job_name == "worker":
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
         # create a summary for our cost and accuracy
-        tf.scalar_summary("cost", cross_entropy)
+        tf.scalar_summary("cost", loss)
         tf.scalar_summary("accuracy", accuracy)
 
         # merge all summaries into a single "operation" which we can execute in a session
@@ -131,7 +132,7 @@ elif FLAGS.job_name == "worker":
                 batch_x, batch_y = mnist.train.next_batch(batch_size)
 
                 # perform the operations we defined earlier on batch
-                _, cost, summary, step, train_accuracy = sess.run([train_op, cross_entropy, summary_op, global_step, accuracy],
+                _, cost, summary, step, train_accuracy = sess.run([train_op, loss, summary_op, global_step, accuracy],
                     feed_dict={x: batch_x, y_: batch_y})
                 writer.add_summary(summary, step)
 
