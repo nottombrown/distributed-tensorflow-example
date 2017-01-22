@@ -33,9 +33,10 @@ FLAGS = tf.app.flags.FLAGS
 server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
 
 # config
-batch_size = 100
+batch_size = 150
 learning_rate = 0.0005
-training_epochs = 20
+training_epochs = 50 # 50
+n_hidden = 500
 logs_path = "/tmp/mnist/1"
 
 # load mnist data set
@@ -64,12 +65,12 @@ elif FLAGS.job_name == "worker":
         # model parameters will change during training so we use tf.Variable
         tf.set_random_seed(1)
         with tf.name_scope("weights"):
-            W1 = tf.Variable(tf.random_normal([784, 100]))
-            W2 = tf.Variable(tf.random_normal([100, 10]))
+            W1 = tf.Variable(tf.random_normal([784, n_hidden]))
+            W2 = tf.Variable(tf.random_normal([n_hidden, 10]))
 
         # bias
         with tf.name_scope("biases"):
-            b1 = tf.Variable(tf.zeros([100]))
+            b1 = tf.Variable(tf.zeros([n_hidden]))
             b2 = tf.Variable(tf.zeros([10]))
 
         # implement model
@@ -89,21 +90,7 @@ elif FLAGS.job_name == "worker":
         with tf.name_scope('train'):
             # optimizer is an "operation" which we can execute in a session
             grad_op = tf.train.GradientDescentOptimizer(learning_rate)
-            '''
-            rep_op = tf.train.SyncReplicasOptimizer(grad_op,
-                                                                                    replicas_to_aggregate=len(workers),
-                                                                                    replica_id=FLAGS.task_index,
-                                                                                    total_num_replicas=len(workers),
-                                                                                    use_locking=True
-                                                                                    )
-            train_op = rep_op.minimize(cross_entropy, global_step=global_step)
-            '''
             train_op = grad_op.minimize(cross_entropy, global_step=global_step)
-
-        '''
-        init_token_op = rep_op.get_init_tokens_op()
-        chief_queue_runner = rep_op.get_chief_queue_runner()
-        '''
 
         with tf.name_scope('Accuracy'):
             # accuracy
@@ -124,12 +111,6 @@ elif FLAGS.job_name == "worker":
     begin_time = time.time()
     frequency = 100
     with sv.prepare_or_wait_for_session(server.target) as sess:
-        '''
-        # is chief
-        if FLAGS.task_index == 0:
-            sv.start_queue_runners(sess, [chief_queue_runner])
-            sess.run(init_token_op)
-        '''
         # create log writer object (this will log on every machine)
         writer = tf.train.SummaryWriter(logs_path, graph=tf.get_default_graph())
 
@@ -145,7 +126,7 @@ elif FLAGS.job_name == "worker":
                 batch_x, batch_y = mnist.train.next_batch(batch_size)
 
                 # perform the operations we defined earlier on batch
-                _, cost, summary, step = sess.run([train_op, cross_entropy, summary_op, global_step],
+                _, cost, summary, step, train_accuracy = sess.run([train_op, cross_entropy, summary_op, global_step, accuracy],
                     feed_dict={x: batch_x, y_: batch_y})
                 writer.add_summary(summary, step)
 
@@ -155,6 +136,7 @@ elif FLAGS.job_name == "worker":
                     start_time = time.time()
                     print("Step: %d," % (step + 1), " Epoch: %2d," % (epoch + 1),
                           " Batch: %3d of %3d," % (i + 1, batch_count), " Cost: %.4f," % cost,
+                          " Train acc %2.2f" % train_accuracy,
                           " AvgTime: %3.2fms" % float(elapsed_time * 1000 / frequency))
                     count = 0
 
