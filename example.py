@@ -21,7 +21,8 @@ import time
 
 # cluster specification
 parameter_servers = ["localhost:12222"]
-workers = ["localhost:12223", "localhost:12224", "localhost:12225"]
+# workers = ["localhost:12223", "localhost:12224", "localhost:12225"]
+workers = ["localhost:12223"]
 cluster = tf.train.ClusterSpec({"ps": parameter_servers, "worker": workers})
 
 # input flags
@@ -65,8 +66,12 @@ elif FLAGS.job_name == "worker":
         # model parameters will change during training so we use tf.Variable
         tf.set_random_seed(1)
         with tf.name_scope("weights"):
-            W1 = tf.Variable(tf.random_normal([784, n_hidden]))
-            W2 = tf.Variable(tf.random_normal([n_hidden, 10]))
+            W1 = tf.get_variable('W1',
+                                 shape=(784, n_hidden),
+                                 initializer=tf.contrib.layers.xavier_initializer())
+            W2 = tf.get_variable('W2',
+                                 shape=(n_hidden, 10),
+                                 initializer=tf.contrib.layers.xavier_initializer())
 
         # bias
         with tf.name_scope("biases"):
@@ -136,7 +141,7 @@ elif FLAGS.job_name == "worker":
                     start_time = time.time()
                     print("Step: %d," % (step + 1), " Epoch: %2d," % (epoch + 1),
                           " Batch: %3d of %3d," % (i + 1, batch_count), " Cost: %.4f," % cost,
-                          " Train acc %2.2f" % train_accuracy,
+                          " Train acc %2.2f" % train_accuracy*100,
                           " AvgTime: %3.2fms" % float(elapsed_time * 1000 / frequency))
                     count = 0
 
