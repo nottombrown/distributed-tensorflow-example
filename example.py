@@ -35,7 +35,7 @@ server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task
 
 # config
 batch_size = 5000  #  As big as will fit on my gpu
-learning_rate = 0.002 #  Average learning. Why no sync?
+learning_rate = 0.016 #  Fast learning
 training_epochs = 50
 n_hidden = 2000
 logs_path = "/tmp/mnist/2"
@@ -84,13 +84,15 @@ elif FLAGS.job_name == "worker":
             z2 = tf.add(tf.matmul(x, W1), b1)
             a2 = tf.nn.sigmoid(z2)
             logits = tf.add(tf.matmul(a2, W2), b2)
+            dropout_logits = tf.nn.dropout(logits, 0.3)
+
             softmax_logits = tf.nn.softmax(logits)
 
         # specify cost function
         with tf.name_scope('cross_entropy'):
             # this is our cost
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, y_)
-            loss = tf.reduce_sum(cross_entropy)
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(dropout_logits, y_)
+            loss = tf.reduce_mean(cross_entropy)
 
         # specify optimizer
         with tf.name_scope('train'):
